@@ -16,6 +16,19 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--ink);font-family:'Source Code Pro',monospace;font-size:13px;min-height:100vh;}
 
+/* ════ CONFIRM MODAL ════ */
+#confirm-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;}
+#confirm-modal.show{display:flex;}
+.confirm-box{background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:2rem;max-width:360px;width:90%;text-align:center;}
+.confirm-box h3{font-family:'IM Fell English',serif;font-size:1.3rem;margin-bottom:.6rem;}
+.confirm-box p{font-size:12px;color:var(--faded);margin-bottom:1.4rem;line-height:1.6;}
+.confirm-btns{display:flex;gap:.6rem;justify-content:center;}
+.confirm-btns button{padding:.55rem 1.4rem;font-family:'Source Code Pro',monospace;font-size:11px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border:none;}
+.confirm-yes{background:var(--accent);color:#fff;}
+.confirm-yes:hover{background:var(--accent2);}
+.confirm-no{background:var(--border);color:var(--ink);}
+.confirm-no:hover{background:var(--faded);color:#fff;}
+
 /* ════ SETUP ════ */
 #setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;}
 .setup-box{background:var(--paper);border:2px solid var(--ink);max-width:560px;width:100%;padding:2.5rem;box-shadow:6px 6px 0 var(--ink);}
@@ -110,6 +123,7 @@ input:focus{border-color:var(--ink);}
 
 /* ════ RESULTS ════ */
 #result-screen{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:2rem 1.5rem;background:var(--bg);}
+#result-screen.active{display:flex;}
 .result-box{background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:2.5rem;width:100%;max-width:860px;}
 .result-box h2{font-family:'IM Fell English',serif;font-size:1.8rem;text-align:center;margin-bottom:.2rem;}
 .result-sub{text-align:center;color:var(--faded);font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:2rem;}
@@ -164,6 +178,18 @@ hr.div{border:none;border-top:1px solid var(--border);margin:1.2rem 0;}
 </style>
 </head>
 <body>
+
+<!-- ════ CONFIRM MODAL ════ -->
+<div id="confirm-modal">
+  <div class="confirm-box">
+    <h3>Prüfung beenden?</h3>
+    <p>Die Prüfung wird beendet und die detaillierte Auswertung angezeigt.<br>Dies kann nicht rückgängig gemacht werden.</p>
+    <div class="confirm-btns">
+      <button class="confirm-yes" onclick="confirmEnd()">Ja, beenden</button>
+      <button class="confirm-no" onclick="cancelEnd()">Abbrechen</button>
+    </div>
+  </div>
+</div>
 
 <!-- ════ SETUP ════ -->
 <div id="setup-screen">
@@ -606,6 +632,12 @@ function renderItem(){
   document.getElementById('current-pruegling-name').textContent=S.prueflinge[S.pidx];
   document.getElementById('pruegling-num').textContent=`${S.pidx+1} / ${S.prueflinge.length}`;
 
+  // always 1-5
+  const legend='<span>1=ungenügend</span><span>2=schwach</span><span>3=ausreichend</span><span>4=gut</span><span>5=sehr gut</span>';
+  document.getElementById('bew-label').textContent='Bewertung (1–5)';
+  document.getElementById('score-legend').innerHTML=legend;
+  renderStars(5);
+
   if(item.kind==='cant_auswendig'||item.kind==='cant_normal'){
     const isA=item.kind==='cant_auswendig';
     phaseName.textContent='♪ Cant';
@@ -616,9 +648,6 @@ function renderItem(){
     document.getElementById('q-text').textContent=`Cant vortragen: „${item.text}"`;
     document.getElementById('q-hint').textContent='';
     document.getElementById('q-krit').style.display='none';
-    document.getElementById('bew-label').textContent='Bewertung (1–5)';
-    document.getElementById('score-legend').innerHTML='<span>1=nicht gekonnt</span><span>2=grobe Fehler</span><span>3=mit Lücken</span><span>4=gut</span><span>5=perfekt</span>';
-    renderStars(5);
   } else if(item.kind==='question'){
     const {block,q}=item;
     phaseName.textContent=`📖 ${block}`;
@@ -631,15 +660,11 @@ function renderItem(){
     const krit=document.getElementById('q-krit');
     if(q.kriterium){krit.textContent=q.kriterium;krit.style.display='block';}
     else krit.style.display='none';
-    document.getElementById('bew-label').textContent='Bewertung (1–3)';
-    document.getElementById('score-legend').innerHTML='<span>1=nicht gewusst</span><span>2=teilweise</span><span>3=vollständig</span>';
-    renderStars(3);
   } else {
-    phaseName.textContent='Ende'; phaseSub.textContent='Alle Canten und Fragen durchgegangen';
+    phaseName.textContent='Ende'; phaseSub.textContent='Alle Bereiche abgedeckt';
     document.getElementById('q-text').textContent='Alle Bereiche wurden abgedeckt. Prüfung kann beendet werden.';
     document.getElementById('q-hint').textContent='';
     document.getElementById('q-krit').style.display='none';
-    renderStars(0);
   }
 }
 
@@ -670,16 +695,14 @@ function submitAndNext(){
   if(item.kind==='cant_auswendig'||item.kind==='cant_normal'){
     const k=item.kind==='cant_auswendig'?'auswendig':'normal';
     S.scores[pidx].Canten[k].push(S.score);
-    // mark done if not already
     if(item.kind==='cant_auswendig'&&!S.cantAuswDone.includes(item.text)) S.cantAuswDone.push(item.text);
     if(item.kind==='cant_normal'&&!S.cantNormDone.includes(item.text)) S.cantNormDone.push(item.text);
     S.history.push({pruefling:S.prueflinge[pidx],text:item.text,area:'Canten',kat:item.kind==='cant_auswendig'?'† Auswendig':'Normal',score:S.score,max:5});
-    // switch to questions after a cant
-    if(S.cantQueue.length===0) { startQuestionPhase(); }
+    if(S.cantQueue.length===0) startQuestionPhase();
   } else if(item.kind==='question'){
     const {block,q}=item;
     S.scores[pidx][block][q.kat].push(S.score);
-    S.history.push({pruefling:S.prueflinge[pidx],text:q.text,area:block,kat:q.kat,score:S.score,max:3});
+    S.history.push({pruefling:S.prueflinge[pidx],text:q.text,area:block,kat:q.kat,score:S.score,max:5});
   }
   S.pidx=(S.pidx+1)%S.prueflinge.length;
   loadNext();
@@ -712,7 +735,13 @@ function updateProgress(){
 }
 
 function endExam(){
-  if(!confirm('Prüfung beenden und detaillierte Auswertung anzeigen?'))return;
+  document.getElementById('confirm-modal').classList.add('show');
+}
+function cancelEnd(){
+  document.getElementById('confirm-modal').classList.remove('show');
+}
+function confirmEnd(){
+  document.getElementById('confirm-modal').classList.remove('show');
   showResults();
 }
 
@@ -724,7 +753,7 @@ function ratCls(r){return r>=0.8?'good':r>=0.5?'mid':'bad';}
 
 function showResults(){
   document.getElementById('exam-screen').style.display='none';
-  document.getElementById('result-screen').style.display='flex';
+  document.getElementById('result-screen').classList.add('active');
 
   const totalItems=S.history.length;
   document.getElementById('result-sub').textContent=
@@ -736,24 +765,20 @@ function showResults(){
     const sc=S.scores[pidx];
     const hist=S.history.filter(h=>h.pruefling===name);
 
-    // Compute per-category results for verdict
-    let failCount=0, warnCount=0, totalCats=0;
-    const catResults={};
+    // All scores are out of 5 now
+    let failCount=0, warnCount=0;
     // Canten
     ['auswendig','normal'].forEach(k=>{
       const scores=sc.Canten[k];
       if(!scores.length)return;
-      const a=avg(scores);const r=a/5;
-      catResults[`Canten_${k}`]={a,r,n:scores.length,max:5,thr:0.6};
-      totalCats++;
-      if(r<0.6)failCount++;else if(r<0.8)warnCount++;
+      const r=avg(scores)/5;
+      if(r<0.6)failCount++;else if(r<0.7)warnCount++;
     });
     BLOCKS.forEach(b=>{
       Object.entries(sc[b]).forEach(([kat,scores])=>{
         if(!scores.length)return;
-        const a=avg(scores);const r=a/3;const thr=THRESHOLDS[kat];
-        catResults[`${b}_${kat}`]={a,r,n:scores.length,max:3,thr};
-        totalCats++;
+        const r=avg(scores)/5;
+        const thr=THRESHOLDS[kat];
         if(r<thr)failCount++;else if(r<thr+0.1)warnCount++;
       });
     });
@@ -765,8 +790,9 @@ function showResults(){
     html+=`<div class="res-pruegling-head">⚑ ${name}<span class="res-verdict ${verdict}">${verdictText}</span></div>`;
     html+=`<div class="res-body">`;
 
-    // ── Canten block ──
-    if(sc.Canten.auswendig.length||sc.Canten.normal.length){
+    // ── Canten ──
+    const hasCantData=sc.Canten.auswendig.length||sc.Canten.normal.length;
+    if(hasCantData){
       html+=`<div class="res-block"><div class="res-block-title">Canten</div><div class="res-cat-grid">`;
       [['auswendig','† Auswendig',0.6],['normal','Mit Buch',0.6]].forEach(([k,label,thr])=>{
         const scores=sc.Canten[k];
@@ -776,7 +802,7 @@ function showResults(){
           <div class="res-cat-name">${label}</div>
           <div class="res-cat-val">${a.toFixed(2)}/5 <span class="chk ${pass?'ok':'no'}">${pass?'✓':'✗'}</span></div>
           <div class="res-cat-bar"><div class="res-cat-fill ${cl}" style="width:${Math.round(r*100)}%"></div></div>
-          <div class="res-cat-note">n=${scores.length} · Werte: ${scores.join(', ')}</div>
+          <div class="res-cat-note">n=${scores.length} · Einzelwerte: ${scores.join(', ')}</div>
         </div>`;
       });
       html+=`</div></div>`;
@@ -785,16 +811,15 @@ function showResults(){
     // ── Per block ──
     BLOCKS.forEach(b=>{
       const bsc=sc[b];
-      const anyData=Object.values(bsc).some(a=>a.length>0);
-      if(!anyData)return;
+      if(!Object.values(bsc).some(a=>a.length>0))return;
       html+=`<div class="res-block"><div class="res-block-title">${b}</div><div class="res-cat-grid">`;
       Object.entries(bsc).forEach(([kat,scores])=>{
         const thr=THRESHOLDS[kat];
         if(!scores.length){html+=`<div class="res-cat-card"><div class="res-cat-name">${kat}</div><div class="no-data">—</div></div>`;return;}
-        const a=avg(scores);const r=a/3;const cl=ratCls(r);const pass=r>=thr;
+        const a=avg(scores);const r=a/5;const cl=ratCls(r);const pass=r>=thr;
         html+=`<div class="res-cat-card">
           <div class="res-cat-name">${kat} <span style="font-weight:400;color:var(--faded)">(≥${Math.round(thr*100)}%)</span></div>
-          <div class="res-cat-val">${a.toFixed(2)}/3 <span class="chk ${pass?'ok':'no'}">${pass?'✓':'✗'}</span></div>
+          <div class="res-cat-val">${a.toFixed(2)}/5 <span class="chk ${pass?'ok':'no'}">${pass?'✓':'✗'}</span></div>
           <div class="res-cat-bar"><div class="res-cat-fill ${cl}" style="width:${Math.round(r*100)}%"></div></div>
           <div class="res-cat-note">n=${scores.length} · ${Math.round(r*100)}% · Schwelle ${Math.round(thr*100)}%</div>
         </div>`;
@@ -802,20 +827,19 @@ function showResults(){
       html+=`</div></div>`;
     });
 
-    // ── Question-by-question history ──
+    // ── Verlauf ──
     if(hist.length){
       html+=`<div class="res-history">
         <div class="res-history-title">Verlauf – alle bewerteten Aufgaben (${hist.length})</div>
         <table class="hist-table">
           <thead><tr><th>#</th><th>Bereich</th><th>Typ</th><th>Frage / Aufgabe</th><th>Note</th></tr></thead><tbody>`;
       hist.forEach((h,i)=>{
-        const pillCls=`sp${h.score}`;
         html+=`<tr>
           <td style="color:var(--faded);white-space:nowrap">${i+1}</td>
           <td style="white-space:nowrap">${h.area}</td>
           <td style="white-space:nowrap">${h.kat}</td>
           <td>${h.text}</td>
-          <td><span class="score-pill ${pillCls}">${h.score}/${h.max}</span></td>
+          <td><span class="score-pill sp${h.score}">${h.score}/5</span></td>
         </tr>`;
       });
       html+=`</tbody></table></div>`;
@@ -823,22 +847,21 @@ function showResults(){
       html+=`<div class="no-data" style="padding:.5rem 0">Keine bewerteten Aufgaben für diesen Prüfling.</div>`;
     }
 
-    html+=`</div></div>`; // res-body, res-pruegling
+    html+=`</div></div>`;
   });
 
-  // ── Legend ──
   html+=`<hr class="div"><div style="font-size:10px;color:var(--faded);line-height:1.8">
-    <strong style="color:var(--ink)">Schwellenwerte:</strong>
+    <strong style="color:var(--ink)">Schwellenwerte (von max. 5):</strong>
     Auswendig ≥90% · Verständnis ≥80% · Sinnesfrage ≥70% · Fangfrage ≥60%<br>
-    <strong style="color:var(--ink)">Bewertung Fragen:</strong> 1=nicht gewusst, 2=teilweise, 3=vollständig &nbsp;|&nbsp;
-    <strong style="color:var(--ink)">Bewertung Canten:</strong> 1–5
+    <strong style="color:var(--ink)">Bewertung:</strong> 1=ungenügend, 2=schwach, 3=ausreichend, 4=gut, 5=sehr gut
   </div>`;
 
   document.getElementById('result-content').innerHTML=html;
+  window.scrollTo(0,0);
 }
 
 function restart(){
-  document.getElementById('result-screen').style.display='none';
+  document.getElementById('result-screen').classList.remove('active');
   document.getElementById('setup-screen').style.display='flex';
 }
 </script>
