@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BFP – Brandfuxenprüfung</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Source+Code+Pro:wght@400;600&display=swap');
+
+:root {
+  --bg:#f5f0e8; --paper:#faf7f2; --ink:#1a1410; --faded:#6b5e4e;
+  --accent:#8b1a1a; --accent2:#c0392b; --gold:#b8860b;
+  --border:#c8b89a; --green:#2d5a27; --orange:#c0620a; --card:#f0ebe0;
+  --blue:#1a3a6b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:'Source Code Pro',monospace;font-size:13px;min-height:100vh;}
+
+/* ════ CONFIRM MODAL ════ */
+#confirm-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;}
+#confirm-modal.show{display:flex;}
+.confirm-box{background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:2rem;max-width:360px;width:90%;text-align:center;}
+.confirm-box h3{font-family:'IM Fell English',serif;font-size:1.3rem;margin-bottom:.6rem;}
+.confirm-box p{font-size:12px;color:var(--faded);margin-bottom:1.4rem;line-height:1.6;}
+.confirm-btns{display:flex;gap:.6rem;justify-content:center;}
+.confirm-btns button{padding:.55rem 1.4rem;font-family:'Source Code Pro',monospace;font-size:11px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border:none;}
+.confirm-yes{background:var(--accent);color:#fff;}
+.confirm-yes:hover{background:var(--accent2);}
+.confirm-no{background:var(--border);color:var(--ink);}
+.confirm-no:hover{background:var(--faded);color:#fff;}
+
+/* ════ SETUP ════ */
+#setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;}
+.setup-box{background:var(--paper);border:2px solid var(--ink);max-width:560px;width:100%;padding:2.5rem;box-shadow:6px 6px 0 var(--ink);}
+.setup-box h1{font-family:'IM Fell English',serif;font-size:2rem;text-align:center;margin-bottom:.2rem;}
+.subtitle{text-align:center;color:var(--faded);font-size:11px;margin-bottom:2rem;letter-spacing:.12em;text-transform:uppercase;}
+.field-group{margin-bottom:1.2rem;}
+label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--faded);margin-bottom:.4rem;}
+input[type=number],input[type=text]{width:100%;background:var(--bg);border:1px solid var(--border);padding:.55rem .7rem;font-family:'Source Code Pro',monospace;font-size:13px;color:var(--ink);outline:none;}
+input:focus{border-color:var(--ink);}
+.prueflinge-inputs{display:flex;flex-direction:column;gap:.4rem;}
+.btn-primary{width:100%;margin-top:1.5rem;background:var(--ink);color:var(--bg);border:none;padding:.75rem;font-family:'Source Code Pro',monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;}
+.btn-primary:hover{background:var(--accent);}
+
+/* ════ EXAM LAYOUT ════ */
+#exam-screen{display:none;min-height:100vh;flex-direction:column;}
+
+.exam-header{background:var(--ink);color:var(--bg);padding:.65rem 1.2rem;display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;}
+.exam-title{font-family:'IM Fell English',serif;font-size:1.1rem;}
+.header-meta{font-size:10px;color:#c8b89a;letter-spacing:.1em;text-transform:uppercase;}
+.btn-end{background:var(--accent);color:#fff;border:none;padding:.4rem .9rem;font-family:'Source Code Pro',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;white-space:nowrap;}
+.btn-end:hover{background:var(--accent2);}
+
+/* progress strip */
+.progress-strip{background:#2e2820;padding:.4rem 1.2rem;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;}
+.prog-item{font-size:9px;color:#c8b89a;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:.3rem;}
+.prog-count{background:var(--gold);color:var(--ink);padding:.1rem .3rem;font-weight:600;font-size:9px;min-width:18px;text-align:center;}
+.prog-count.zero{background:#444;color:#777;}
+
+/* phase strip */
+.phase-strip{background:var(--card);border-bottom:1px solid var(--border);padding:.3rem 1.2rem;display:flex;align-items:center;gap:.6rem;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faded);}
+.phase-name{font-weight:600;color:var(--ink);}
+
+/* ════ MAIN CONTENT (sidebar layout) ════ */
+.exam-body{flex:1;display:grid;grid-template-columns:260px 1fr;gap:0;align-items:start;}
+
+/* ── CANT SIDEBAR ── */
+.cant-sidebar{background:var(--paper);border-right:2px solid var(--border);min-height:100%;padding:1rem;}
+.cant-sidebar-title{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--faded);margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;}
+.cant-section{margin-bottom:.8rem;}
+.cant-section-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin-bottom:.3rem;font-weight:600;}
+.cant-section-label.normal{color:var(--faded);}
+.cant-item{display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border:1px solid transparent;cursor:pointer;font-size:11px;line-height:1.3;transition:background .1s,border-color .1s;}
+.cant-item:hover{background:var(--card);border-color:var(--border);}
+.cant-item.queued{background:rgba(139,26,26,.08);border-color:var(--accent);color:var(--accent);}
+.cant-item.done{opacity:.38;text-decoration:line-through;}
+.cant-item.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.cant-bullet{width:8px;height:8px;border:1.5px solid currentColor;flex-shrink:0;}
+.cant-bullet.filled{background:currentColor;}
+.cant-queue-hint{font-size:9px;color:var(--faded);font-style:italic;margin-top:.3rem;line-height:1.4;}
+
+/* ── QUESTION AREA ── */
+.question-area{padding:1.5rem 1.5rem 1.5rem 1.2rem;display:flex;flex-direction:column;gap:1rem;}
+
+.pruegling-badge{display:flex;align-items:center;gap:.8rem;background:var(--paper);border:1px solid var(--border);padding:.55rem 1rem;}
+.pruegling-label{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--faded);}
+.pruegling-name{font-family:'IM Fell English',serif;font-size:1.15rem;}
+.pruegling-num{font-size:10px;color:var(--faded);margin-left:auto;}
+
+.question-card{background:var(--paper);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--border);padding:1.6rem;}
+.q-meta{display:flex;gap:.5rem;align-items:center;margin-bottom:.9rem;flex-wrap:wrap;}
+.q-num{font-size:10px;color:var(--faded);letter-spacing:.1em;text-transform:uppercase;}
+.tag{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:.12rem .45rem;border:1px solid;font-weight:600;}
+.tag-canten{border-color:var(--gold);color:var(--gold);}
+.tag-auswendig{border-color:var(--accent);color:var(--accent);background:rgba(139,26,26,.06);}
+.tag-v{border-color:var(--blue);color:var(--blue);}
+.tag-s{border-color:var(--green);color:var(--green);}
+.tag-f{border-color:var(--orange);color:var(--orange);}
+.tag-area{border-color:var(--border);color:var(--faded);background:var(--bg);}
+.q-text{font-family:'IM Fell English',serif;font-size:1.3rem;line-height:1.5;margin-bottom:.4rem;}
+.q-hint{font-size:11px;color:var(--faded);font-style:italic;line-height:1.6;margin-bottom:.3rem;}
+.q-krit{background:var(--bg);border-left:3px solid var(--border);padding:.55rem .75rem;font-size:11px;color:var(--faded);line-height:1.65;margin-bottom:1rem;white-space:pre-line;}
+
+.bewertung-section{border-top:1px solid var(--border);padding-top:1rem;}
+.bew-label{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--faded);margin-bottom:.4rem;}
+.score-legend{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.55rem;font-size:9px;color:var(--faded);}
+.stars{display:flex;gap:.4rem;margin-bottom:.9rem;flex-wrap:wrap;}
+.star-btn{width:44px;height:44px;border:2px solid var(--border);background:var(--bg);font-family:'Source Code Pro',monospace;font-size:15px;cursor:pointer;font-weight:600;color:var(--faded);display:flex;align-items:center;justify-content:center;}
+.star-btn:hover{border-color:var(--gold);color:var(--gold);}
+.star-btn.sel{color:#fff;border-color:transparent;}
+.star-btn.s1{background:var(--accent);}
+.star-btn.s2{background:var(--orange);}
+.star-btn.s3{background:var(--gold);color:var(--ink)!important;}
+.star-btn.s4{background:#3a7a35;}
+.star-btn.s5{background:var(--green);}
+
+.action-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+.btn-next{background:var(--ink);color:var(--bg);border:none;padding:.6rem 1.8rem;font-family:'Source Code Pro',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;}
+.btn-next:hover{background:var(--accent);}
+.btn-next:disabled{background:var(--border);cursor:default;}
+.btn-skip{background:transparent;color:var(--faded);border:1px solid var(--border);padding:.6rem 1rem;font-family:'Source Code Pro',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;}
+.btn-skip:hover{border-color:var(--faded);color:var(--ink);}
+
+/* ════ RESULTS ════ */
+#result-screen{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:2rem 1.5rem;background:var(--bg);}
+#result-screen.active{display:flex;}
+.result-box{background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:2.5rem;width:100%;max-width:860px;}
+.result-box h2{font-family:'IM Fell English',serif;font-size:1.8rem;text-align:center;margin-bottom:.2rem;}
+.result-sub{text-align:center;color:var(--faded);font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:2rem;}
+
+.res-pruegling{margin-bottom:2rem;border:1px solid var(--border);background:var(--card);}
+.res-pruegling-head{background:var(--ink);color:var(--bg);padding:.6rem 1rem;font-family:'IM Fell English',serif;font-size:1.1rem;display:flex;justify-content:space-between;align-items:center;}
+.res-verdict{font-size:11px;font-weight:600;letter-spacing:.1em;}
+.res-verdict.pass{color:#a8e6a3;}
+.res-verdict.warn{color:#ffe08a;}
+.res-verdict.fail{color:#ffaaaa;}
+.res-body{padding:1rem;}
+
+.res-block{margin-bottom:1rem;}
+.res-block-title{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--faded);border-bottom:1px solid var(--border);padding-bottom:.2rem;margin-bottom:.5rem;}
+.res-cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.4rem;}
+.res-cat-card{background:var(--paper);border:1px solid var(--border);padding:.5rem .7rem;}
+.res-cat-name{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--faded);margin-bottom:.2rem;}
+.res-cat-val{font-size:1rem;font-weight:600;font-family:'IM Fell English',serif;display:flex;align-items:center;gap:.4rem;}
+.res-cat-val .chk{font-size:12px;}
+.chk.ok{color:var(--green);}
+.chk.no{color:var(--accent);}
+.res-cat-bar{height:4px;background:var(--border);margin-top:.3rem;}
+.res-cat-fill{height:100%;}
+.res-cat-fill.good{background:var(--green);}
+.res-cat-fill.mid{background:var(--orange);}
+.res-cat-fill.bad{background:var(--accent);}
+.res-cat-note{font-size:9px;color:var(--faded);margin-top:.2rem;}
+.no-data{font-size:11px;color:var(--faded);font-style:italic;}
+
+.res-history{margin-top:1.2rem;}
+.res-history-title{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--faded);margin-bottom:.4rem;}
+.hist-table{width:100%;border-collapse:collapse;font-size:11px;}
+.hist-table th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faded);padding:.3rem .4rem;border-bottom:1px solid var(--border);}
+.hist-table td{padding:.3rem .4rem;border-bottom:1px solid rgba(200,184,154,.3);vertical-align:top;}
+.hist-table tr:last-child td{border-bottom:none;}
+.score-pill{display:inline-block;padding:.1rem .35rem;font-weight:600;font-size:10px;color:#fff;}
+.sp1{background:var(--accent);}
+.sp2{background:var(--orange);}
+.sp3{background:var(--gold);color:var(--ink);}
+.sp4{background:#3a7a35;}
+.sp5{background:var(--green);}
+
+hr.div{border:none;border-top:1px solid var(--border);margin:1.2rem 0;}
+.btn-restart{display:block;margin:1.5rem auto 0;background:var(--ink);color:var(--bg);border:none;padding:.65rem 2.5rem;font-family:'Source Code Pro',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;}
+.btn-restart:hover{background:var(--accent);}
+
+@media(max-width:700px){
+  .exam-body{grid-template-columns:1fr;}
+  .cant-sidebar{border-right:none;border-bottom:2px solid var(--border);min-height:unset;}
+  .q-text{font-size:1.1rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ════ CONFIRM MODAL ════ -->
+<div id="confirm-modal">
+  <div class="confirm-box">
+    <h3>Prüfung beenden?</h3>
+    <p>Die Prüfung wird beendet und die detaillierte Auswertung angezeigt.<br>Dies kann nicht rückgängig gemacht werden.</p>
+    <div class="confirm-btns">
+      <button class="confirm-yes" onclick="confirmEnd()">Ja, beenden</button>
+      <button class="confirm-no" onclick="cancelEnd()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SETUP ════ -->
+<div id="setup-screen">
+  <div class="setup-box">
+    <h1>Brandfuxenprüfung</h1>
+    <p class="subtitle">Zofingia Hochschulsektion St. Gallen &mdash; FS26</p>
+    <div class="field-group">
+      <label>Durchgang-Zahl (1–10) — Seed</label>
+      <input type="number" id="seed" min="1" max="10" value="1">
+    </div>
+    <div class="field-group">
+      <label>Anzahl Prüflinge</label>
+      <input type="number" id="num-prueflinge" min="1" max="10" value="1" oninput="updatePrueflingeFields()">
+    </div>
+    <div class="field-group">
+      <label>Vulgo der Prüflinge</label>
+      <div class="prueflinge-inputs" id="prueflinge-inputs">
+        <input type="text" class="pruegling-input" placeholder="Prüfling 1 Vulgo">
+      </div>
+    </div>
+    <button class="btn-primary" onclick="startExam()">PRÜFUNG STARTEN</button>
+  </div>
+</div>
+
+<!-- ════ EXAM ════ -->
+<div id="exam-screen">
+  <div class="exam-header">
+    <span class="exam-title">Brandfuxenprüfung</span>
+    <span class="header-meta" id="header-meta"></span>
+    <button class="btn-end" onclick="endExam()">✕ Prüfung beenden &amp; Auswertung</button>
+  </div>
+  <div class="progress-strip" id="progress-strip"></div>
+  <div class="phase-strip">
+    <span class="phase-name" id="phase-name">—</span>
+    <span id="phase-sub" style="color:var(--faded)"></span>
+  </div>
+
+  <div class="exam-body">
+    <!-- CANT SIDEBAR -->
+    <div class="cant-sidebar">
+      <div class="cant-sidebar-title">
+        <span>† Auswendig-Canten</span>
+        <span style="font-size:9px;color:var(--faded)" id="queued-hint"></span>
+      </div>
+      <div id="cant-auswendig-list"></div>
+      <div style="margin-top:.8rem">
+        <div class="cant-sidebar-title"><span>Canten (mit Buch)</span></div>
+        <div id="cant-normal-list"></div>
+      </div>
+      <div class="cant-queue-hint">Klick auf einen Cant → als Nächstes einreihen</div>
+    </div>
+
+    <!-- QUESTION AREA -->
+    <div class="question-area">
+      <div class="pruegling-badge">
+        <div>
+          <div class="pruegling-label">Aktueller Prüfling</div>
+          <div class="pruegling-name" id="current-pruegling-name">—</div>
+        </div>
+        <div class="pruegling-num" id="pruegling-num"></div>
+      </div>
+
+      <div class="question-card">
+        <div class="q-meta">
+          <span class="q-num" id="q-num">#1</span>
+          <span class="tag tag-area" id="q-area-tag"></span>
+          <span class="tag" id="q-type-tag"></span>
+        </div>
+        <div class="q-text" id="q-text"></div>
+        <div class="q-hint" id="q-hint"></div>
+        <div class="q-krit" id="q-krit" style="display:none"></div>
+        <div class="bewertung-section">
+          <div class="bew-label" id="bew-label">Bewertung</div>
+          <div class="score-legend" id="score-legend"></div>
+          <div class="stars" id="stars"></div>
+          <div class="action-row">
+            <button class="btn-next" id="btn-next" onclick="submitAndNext()" disabled>WEITER →</button>
+            <button class="btn-skip" onclick="skipItem()">ÜBERSPRINGEN</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RESULTS ════ -->
+<div id="result-screen">
+  <div class="result-box">
+    <h2>Auswertung BFP</h2>
+    <p class="result-sub" id="result-sub"></p>
+    <div id="result-content"></div>
+    <button class="btn-restart" onclick="restart()">↺ NEU STARTEN</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════
+
+const BLOCKS = ['Biercomment','Centralstatuten','Sektionsstatuten','Farbentradition','Geschichte','Fuxenheft'];
+const THRESHOLDS = { Auswendig:0.9, Verständnis:0.8, Sinnesfrage:0.7, Fangfrage:0.6 };
+
+const CANTEN_AUSWENDIG = [
+  'La Blanche',
+  'Wie ist der Bursch sich selbst bewusst',
+  'Schweizerpsalm (min. eine Landessprache)',
+  'Rufst du mein Vaterland',
+  'Des Trinkers Testament',
+];
+const CANTEN_NORMAL = [
+  'Zofingerpfiff','La Messe','Zofingermarsch (Melodie)',
+  'Ah glu glu','Beresinalied','Ca ca geschmauset','Gaudeamus igitur',
+  'Fritzli Lützelmaa','Là-haut sur la Montagne','Als wir jüngst in Regensburg waren',
+  'Avez-vous vu?','Bin ein fahrender Gesell','Burschen heraus',
+  'Chevaliers de la table ronde','Crambambuli','Das war der Graf von Rüdesheim',
+  'Die Gedanken sind frei','Ein Heller und ein Batzen','Gilberte de Courgenay',
+  'Grad aus dem Wirtshaus','Hammerschmied','Hier sind wir versammelt',
+  'Im Krug zum grünen Kranze','Leibarzt und Trinker','Oh alte Burschenherrlichkeit',
+  'Papst und Sultan','Student sein wenn die Veilchen blühen','Trautes Schätzchen',
+  'Und wenn sich der Schwarm verlaufen hat','Fa mal i pè','Quattro cavai que trottano',
+  'Adele','Wir wollen ein Klösterlein bauen',
+];
+
+const QUESTIONS = {
+Biercomment:[
+  {kat:'Auswendig',text:'Nenne §11 auswendig und wortwörtlich.',kriterium:'1 Wort falsch = 0 Pkt. (Paragraph ist kurz)'},
+  {kat:'Auswendig',text:'Nenne §60 auswendig und wortwörtlich.',kriterium:'1 Wort falsch = 0 Pkt.'},
+  {kat:'Auswendig',text:'Nenne §61 auswendig und wortwörtlich.',kriterium:'1 Wort falsch = 0 Pkt.'},
+  {kat:'Auswendig',text:'Nenne §22 (Fuxenparagraph) auswendig und wortwörtlich.',kriterium:'Für jedes falsche Wort einen halben Punkt Abzug.'},
+  {kat:'Auswendig',text:'Nenne §111 auswendig und wortwörtlich.'},
+  {kat:'Fangfrage',text:'Hat der Biercomment Paragraphen oder Artikel?',kriterium:'Wenn er sagt, dass der Comment § statt Art. hat → Punkt.'},
+  {kat:'Fangfrage',text:'Angenommen, es braucht einen zweiten Salon. Bis auf wieviele Biere darf der VX den zweiten Contra rinnen lassen, ohne Genehmigung des X? Wie bei mehreren FMs?',kriterium:'Die Contras sind ebenbürtig → 0 Biere. Gleiches gilt bei mehreren FM.'},
+  {kat:'Fangfrage',text:'Wie schnell muss man sich ein neues Bier anschnallen, wenn man seinen Resten trinkt?',kriterium:'"Aber sofort!" (Biercomment, 2012, S. 7)'},
+  {kat:'Fangfrage',text:'Wenn ich erst ein klägliches Fliessblatt geschlürft habe und jemand mit mir schmollt – darf ich ihm trotzdem meine Blume zutrinken?',kriterium:'Nein. Stösst man mit einem angetrunkenen Stoff an, trinkt man seinen Resten.'},
+  {kat:'Fangfrage',text:'Wie kann ein Zofinger mehreren gleichzeitig zutrinken?',kriterium:'1: Ein Bierbürger darf nicht mehreren gleichzeitig zutrinken.\n1: Einzig der X darf mehreren gleichzeitig zutrinken.'},
+  {kat:'Fangfrage',text:'Was haben wir aus der Schlacht bei Mukden für den Bierstreit gelernt?',kriterium:'1: Die Schlacht bei Mukden ist erst in elf Tagen geschlagen worden – ein Bierkampf muss nicht sofort entschieden werden.\n1: Bierstreit muss innert 10 Bierminuten wiederholt werden.\n1: Kampfunfähige können durch t.u. eine Frist erlangen.\nBonus: Russisch-Japanischer Krieg 1905, eine der grössten Schlachten vor dem 1. WK.'},
+  {kat:'Sinnesfrage',text:'Was ist der Zweck des Comments? (§12)',kriterium:'1: Sittlich geregelte Grundlage des Trankwesens.\n1: Allgemeines Verständnis des gesellschaftlichen Zusammenseins.'},
+  {kat:'Sinnesfrage',text:'Wie lebst du den Comment und was lernst du daraus? (§13)',kriterium:'Beispiele erwartet. Primär gesellschaftliches Zusammensein, nicht Saufen.\n2. Pkt: Lehren fürs Privatleben (Knigge, Auftreten, Contenance, etc.)'},
+  {kat:'Sinnesfrage',text:'Was bedeutet es für dich, Bursch zu sein? (§20)',kriterium:'Vorbildsfunktion, Pflege der Traditionen, Verantwortung, Fuxen lehren.\nKeine Punkte für Antworten wie "Daumen zeigen" oder "Bier zahlen".'},
+  {kat:'Sinnesfrage',text:'Was sagt dir der Fuxenparagraph? (§22)',kriterium:'Burschen bilden Fuxen aus, nicht um sie zu saufen. Der Paragraph schützt Fuxen und lehrt Demut.'},
+  {kat:'Sinnesfrage',text:'Was ist für dich Fuxensolidarität? (§28)',kriterium:'Man hält zusammen, Commitment in guten und schlechten Zeiten, interne Probleme intern regeln.'},
+  {kat:'Sinnesfrage',text:'Warum hat der Bierpräses seine Rechte auch gegenüber den ältesten Burschen? (§35)',kriterium:'1: Klare Hierarchie notwendig.\n1: Jeder muss die Möglichkeit erhalten, Verantwortung zu tragen.'},
+  {kat:'Sinnesfrage',text:'Wie interpretierst du die Aufgaben des FM? (§40+41)',kriterium:'Vorbildsfunktion, Einführung der Fuxen, Erklärung der Regeln, geordnetes Zusammensein.'},
+  {kat:'Sinnesfrage',text:'Was sind Chancen und Gefahren des Dienstweges? (§43)',kriterium:'Schutz der Fuxen durch FM-Dienstweg. Missbrauch führt zu Daumen des FM.'},
+  {kat:'Sinnesfrage',text:'Weshalb trinken wir zu? (§68)',kriterium:'Ehrliche Bierbürger saufen nicht stumpfsinnig, sondern erfreuen andere damit. Der Angetrunkene revanchiert sich.'},
+  {kat:'Verständnis',text:'Was ist die Geschichte des §11?',kriterium:'1: Erste 10 Paragraphen ~ 10 Gebote.\n1: Ableitung von der Gesellenordnung der Handwerker (19. Jh.): "§11 Es wird weitergewandert!"'},
+  {kat:'Verständnis',text:'Wann gilt der Comment? (§13)',kriterium:'Bei 3 Z!HSG-lern und commentmässigem Stoff.'},
+  {kat:'Verständnis',text:'2 Z!HSG und 1 Z!MSG trinken zusammen. Gilt der Comment?',kriterium:'Nein, da nicht 3 Z!HSG-ler.'},
+  {kat:'Verständnis',text:'3 Z!HSG-ler, einer trinkt Rivella. Gilt der Comment?',kriterium:'Nein. Rivella ist kein commentmässiger Stoff.'},
+  {kat:'Verständnis',text:'Gilt der Comment für AZ? (§14)',kriterium:'Nein, sie sind jenseits von Gut und Böse.'},
+  {kat:'Verständnis',text:'Nenne die commentmässigen Stöffe. (§15)',kriterium:'Je 0.5 Pkt: alkoholhaltige Säfte, Biere, Weine, Schnäpse, alkoholfreier Süssmost, alkoholfreies Bier.'},
+  {kat:'Verständnis',text:'Was sind die Lehren von den sieben mageren Jahren Ägyptens? (§16)',kriterium:'Man hat immer Stoff!'},
+  {kat:'Verständnis',text:'Was ist das FiaZ-Verbot und wie kann es umgesetzt werden? (§17)',kriterium:'1: Wer fährt, trinkt keinen Alkohol.\n1: FM und Fuxen sorgen dafür (Autoschlüssel wegnehmen, etc.)'},
+  {kat:'Verständnis',text:'Wie kann der Comment abgeändert werden und wer legt ihn aus? (§18)',kriterium:'AC ändert ihn, BC interpretiert ihn bei Streitigkeiten.'},
+  {kat:'Verständnis',text:'Nenne zwei Möglichkeiten, Bursch zu werden, und beschreibe das Ritual. (§20)',kriterium:'Burschenprüfung/-produktion oder Zwangsburschifikation.\nRitual: 5 Biere (Fuxenstall → Vogelfreier Raum → Vogelfreier Raum → Salon → Burschenband).'},
+  {kat:'Verständnis',text:'In welche Kategorien kann die Corona geteilt werden? (§21, §25)',kriterium:'1: Jungbursch, Altbursch, bemoste Häupter.\n1: Keilfuxe, krasse Fuxen, Brandfuxen.'},
+  {kat:'Verständnis',text:'Was sind die Befugnisse des FM gegenüber den Fuxen? (§42)',kriterium:'1. Silentium gebieten\n2. Quantum vortrinken\n3. Fuxen bis auf zwei ganze verdonnern oder auf Wasser setzen\n4. Amt vorübergehend abtreten.'},
+  {kat:'Verständnis',text:'Wieviel ist eine Bierminute? Wieviele Bierminuten sind 72 Philisterminuten? (§47)',kriterium:'0.5: 0.6 Philisterminuten.\n0.5: 120 Bierminuten.'},
+  {kat:'Verständnis',text:'Nenne alle Tempi. (§48, §50, §64)',kriterium:'Tempus navigandi: Toilettengang.\nTempus utile: Zeit für Beteiligung und Vorbereitungen.\nTempus abeundi: Vorzeitig gehen.\nTempus edendi: Am Biertisch speisen.'},
+  {kat:'Verständnis',text:'Was sind die Quanti und woraus besteht ein Ganzer? (§53)',kriterium:'Je 0.5: Ganzer, Halben, Quart, Resten.\n1: Ein Ganzer = Blume + drei Quart.'},
+  {kat:'Verständnis',text:'Was ist die Stoffimmunität? (§62)',kriterium:'Kein Bierbürger kann innerhalb 5 Bierminuten (oder nach Salamander/Bierskandal/Herauspauken) bei mehr als einem Zutrunk mitziehen.'},
+  {kat:'Verständnis',text:'Erkläre den Biergalopp. (§76)',kriterium:'Ablauf wie Blitzquart. Jeder kämpft und leitet weiter. Beim letzten wird gekehrt. Ende: "Biergalopp ex!"'},
+  {kat:'Verständnis',text:'Nenne die vier Arten des Bierstreits. (§77)',kriterium:'0.5 Pkt pro: Jünger (1), Doktor (2), Bischof (3), Papst (4).'},
+  {kat:'Verständnis',text:'Erkläre den Salamander. (§102)',kriterium:'Kommando: "Silentium! Ab exercitium Salamandri surgite! Fiat Salamander in honorem ... Salamander, Salamander, Salamander fit; bibite ex!"\nAuf "Salamander" reiben, auf "fit" erheben, auf "bibite ex" leeren.\n1 2 3 ! (rappeln), 1 2 3 ! (heben), 1 2 3 ! (aufschlagen). Salamander ex!'},
+  {kat:'Verständnis',text:'Was sind Gründe für den einfachen BV? (§89)',kriterium:'1. Diktum nicht nachkommen\n2. Zu spät\n3. Unbefugt Silentium/Salamander\n4. Biertisch ohne tempus verlassen\n5. Mogeln oder verweigern\n6. Provozieren ohne Bierskandal annehmen\n7. Mit Bierscheisser Gemeinschaft\n8. Bierimpotenter geriert sich bierehrlich\n9. Pfeifen/werfen\n10. Unangemeldeter Cantus\n11. Falsche Änderungen Biertafel\n12. Kauen/Speisen\n+Fuxentatbestände'},
+  {kat:'Verständnis',text:'Was sind Gründe für den doppelten BV? (§90)',kriterium:'1. Im einfachen BV und bierehrlich gerieren\n2. Beim Herauspauken mogeln\n3. Falches Zeugnis in Biersachen\n4. Bierstreit nicht austragen.'},
+  {kat:'Verständnis',text:'Erkläre den Bierverschiss. (§87)',kriterium:'1: Verlust der Bierehre.\n1: Farben müssen abgezogen werden.\n1: Bierscheisser hat sich jeder Üppigkeit zu enthalten.'},
+  {kat:'Verständnis',text:'Zeige das Herauspauken und erkläre die Regeln. (§93, §94)',kriterium:'Aus einfachem BV: ein Ganzer. Aus doppeltem: zwei Ganze.\nFrühestens nach 10 Bierminuten, noch in derselben Kneipe.\nRitual: "Silentium! Was ist X?" → "Bierehrlich!" → "Wer ist bierehrlich?" → "(Vulgo)" → "Ein Fux kreide ihn aus!"'},
+  {kat:'Verständnis',text:'Erkläre das Abfassen. (§97, §98)',kriterium:'1: Volles Bier >5 Bierminuten stehen lassen → "Straftopf abgefasst – Straftopf ex!"\n1: Wer stehen liess, bezahlt.\n1: Schlauheit der Fuxen = Anzahl abgefasster Stöffe.'},
+  {kat:'Verständnis',text:'Was ist eine Fuxenrepublik? (§103)',kriterium:'1: Fuxen und Burschen tauschen Rollen.\n1: Bierpräses kann sie ausrufen.\n1: Jüngster Fuxe = Präsident, zweitjüngster = FM. VX nicht geregelt.'},
+  {kat:'Verständnis',text:'Erkläre einen Blitzquart. (§75)',kriterium:'"Blitzquart in die Welt vor!" – Jeder: "Nach-Vor" + eine Quart. Letzter: "Blitzquart ex!"'},
+  {kat:'Verständnis',text:'Was passiert, wenn man einen Zutrunk oder ein diktiertes Quantum nicht annimmt? (§59)',kriterium:'Man fällt in den BV.'},
+  {kat:'Sinnesfrage',text:'Warum hat die Zofingia einen Biercomment – was ist sein tieferer Sinn?',hint:'Gesellschaftliche Ordnung, Respekt, Tradition, Zusammenhalt.'},
+],
+Centralstatuten:[
+  {kat:'Auswendig',text:'Rezitiere Art. 1 der Centralstatuten wortwörtlich.',kriterium:'2 Pkt. pro Absatz. 1 Fehler: –1 Pkt. 2+ Fehler: 0 Pkt. für den Absatz.\n\nArt. 1: Die Zofingia ist eine schweizerische Studentenvereinigung. Neben der Pflege der Freundschaft hat sie zum Zweck, Persönlichkeiten heranzubilden, die imstande sind, politische Verantwortung zu tragen. Die Zofingia ist eine Lebensverbindung. Sie setzt sich mit aktuellen Problemen der schweizerischen Politik und Wirtschaft auseinander und beschäftigt sich mit Fragen des universitären, kulturellen und sozialen Lebens. Sie orientiert sich an der Idee eines föderalistisch aufgebauten, demokratischen Rechtstaats und setzt sich für die Wahrung der persönlichen Freiheit ein. Die Zofingia ist parteipolitisch neutral.'},
+  {kat:'Verständnis',text:'Wie kann eine öffentliche Stellungnahme des Gesamtvereins bewirkt werden? (Art. 3)',kriterium:'Beschluss der Festversammlung / DV / Urabstimmung mit Zweidrittelmehr. Ein Punkt pro Nennung.'},
+  {kat:'Verständnis',text:'Welche Mitglieder kennt der Gesamtverein? (Art. 7)',kriterium:'Aktive, Beurlaubte, Ehrenmitglieder, Träger des Ruban d\'Honneur, Altzofinger (beratend). Ein Punkt pro Nennung.'},
+  {kat:'Verständnis',text:'Welche Aufnahmebedingungen stellt der Gesamtverein? (Art. 8)',kriterium:'Männliches Geschlecht, 18 J. (16 Mittelschule), Immatrikulation, 3 Sitzungen Kandidatur, Zweidrittelmehr, Eintrittgebühr.'},
+  {kat:'Verständnis',text:'Wie erlangt man den Status "Beurlaubt"? (Art. 10)',kriterium:'Am neuen Studienort keine Sektion; Sektion besteht, aber nicht immatrikuliert; Sektion besteht, aber kein Übertritt.'},
+  {kat:'Verständnis',text:'Aus welchen Gründen wird ein Zofinger unbedingt ausgestossen? (Art. 14)',kriterium:'Duell, Mensur, nachträglicher Eintritt in andere Verbindung.'},
+  {kat:'Sinnesfrage',text:'Weshalb ist studentisches Fechten ein absoluter Ausschlussgrund?',kriterium:'Zofingia war von Beginn mehrheitlich gegen Mensur. Sektion Zürich verlor 1903 die Ausnahmeregelung.'},
+  {kat:'Verständnis',text:'Was ist der Ruban d\'Honneur? (Art. 17)',kriterium:'Ehrenauszeichnung für herausragende Dienste. Beantragung durch DV oder Sektion. Urabstimmung mit Zweidrittelmehr.'},
+  {kat:'Verständnis',text:'Welche Bedingungen zur AZ-ifizierung? (Art. 19)',kriterium:'Schriftliches Gesuch; Begleichung finanzieller Verpflichtungen; Beitrag an Centralfonds und Centralkasse.'},
+  {kat:'Verständnis',text:'Welche Organe hat der Schweizerische Zofingerverein?',kriterium:'Festversammlung, Urabstimmung, Delegiertenversammlung, CAus, Rechnungsrevisoren, Centralblatt. 0.5 Pkt pro Nennung.'},
+  {kat:'Sinnesfrage',text:'Weshalb wird der Gesamtverein in verschiedene Organe gegliedert?',kriterium:'Gewaltenteilung innerhalb des Vereins.'},
+  {kat:'Verständnis',text:'Wer ist die höchste Gewalt im Gesamtverein? (Art. 29)',kriterium:'Festversammlung. Wer CAus oder CP sagt, geht doppelt Rest weg.'},
+  {kat:'Verständnis',text:'Welche Befugnisse hat die Festversammlung? (Art. 30)',kriterium:'Revision CSt; Auflösung Gesamtverein; Auflösung/Neugründung Sektion; Wahl CAus; Genehmigung Budget und Rechnung (Décharge); Beschlüsse nach Art. 20 Abs. 3.'},
+  {kat:'Verständnis',text:'Erkläre, wie sich die Anzahl der Delegierten pro Sektion bestimmt. (Art. 40)',kriterium:'<30 = 2 Delegierte, 31–60 = 3, 61–90 = 4, >90 = 5.'},
+  {kat:'Verständnis',text:'Welche Ämter gibt es im CAus? (Art. 53)',kriterium:'Centralpräsident, Centralquästor, Centralaktuar, 2–4 Suppleanten/Morpione.'},
+  {kat:'Verständnis',text:'Welche Aufgaben nimmt der CAus wahr? (Art. 61)',kriterium:'1. Sektionen fördern\n2. Centralblattreglement\n3. Semesterthema vorschlagen\n4. Sektionen besuchen\n5. Kalender erstellen\n6. Centralseminar\n7. Centralfest\n8. CSt interpretieren\n9. Verwaltung\n10. Internetauftritt'},
+  {kat:'Verständnis',text:'Wann findet die Amtsübergabe des CAus statt? (Art. 57)',kriterium:'Am Nationalfeiertag des 1. Augustes.'},
+  {kat:'Verständnis',text:'Wer haftet für Schäden während des Centralfests? (Art. 75)',kriterium:'1. Einzelnes Mitglied (persönlich verantwortlich)\n2. Sektion (wenn Zugehörigkeit bewiesen)\n3. Alle anwesenden Sektionen (bei anonymem Schaden, proportional).'},
+  {kat:'Verständnis',text:'Wer entscheidet über die Auflösung des Schweizerischen Zofingervereins? (Art. 80)',kriterium:'Die Festversammlung auf Antrag der Delegiertenversammlung.'},
+  {kat:'Sinnesfrage',text:'Weshalb gelten die Mitglieder des CAus als beurlaubt?',kriterium:'Sie nehmen grosse Verantwortung wahr und müssen Anlässe aller Sektionen besuchen.'},
+  {kat:'Verständnis',text:'Erfahrungsgemäss gibt es vier Suppleanten. Benenne diese.',kriterium:'Centralfestmorpion, Centralblattmorpion, Centralseminarmorpion, Mittelschulmorpion.'},
+],
+Sektionsstatuten:[
+  {kat:'Auswendig',text:'Nenne Art. 1 der Sektionsstatuten auswendig.',kriterium:'Vollständig: 4 Pkt. 1–2 Fehler: 3 Pkt. 3–4: 2 Pkt. 5–6: 1 Pkt.\n\nArt. 1: Die Zofingia St.Gallen Hochschulsektion ist eine akademische Sektion des Schweizerischen Zofingervereins und untersteht den Centralstatuten.'},
+  {kat:'Verständnis',text:'Welche Aufnahmebedingungen laut Sektionsstatuten? (Art. 4)',kriterium:'Erfüllung CSt Art. 8; Immatrikulation HSG.'},
+  {kat:'Verständnis',text:'Wie kandidiert man zur Aufnahme? (Art. 6)',kriterium:'Schriftliches Gesuch an Präsidenten; 3 ordentliche Anlässe; Fuxenstunde; Cantusstunde; Montagsstamm.'},
+  {kat:'Verständnis',text:'Wie ist der Abstimmungsmodus bei der Aufnahme? (Art. 8)',kriterium:'Geheime Abstimmung; Dreiviertelmehrheit; leere Stimmzettel gelten nicht; keine Protokollierung von Diskussion und Resultat.'},
+  {kat:'Sinnesfrage',text:'Weshalb werden Diskussion und Abstimmungsresultat nicht protokolliert? (Art. 8)',kriterium:'Persönliche Informationen der Kandidaten bleiben für die Ohren der Anwesenden.'},
+  {kat:'Verständnis',text:'Erkläre alle Facetten der Fuxenzeit. (Art. 11)',kriterium:'Beginnt mit definitiver Aufnahme; i.d.R. 2 Semester; BC kann verlängern; Mittelschüler und reife Fuxen können im 1. Semester BP antreten; BFP muss im 2. Fuxensemester angelegt werden.'},
+  {kat:'Verständnis',text:'Was passiert, wenn ein Fuxe die BFP wiederholt nicht besteht? (Art. 11)',kriterium:'BC wird einberufen, Fuxe muss sich persönlich erklären. BC entscheidet.'},
+  {kat:'Verständnis',text:'Was umfasst die Burschenprüfung nach Sektionsstatuten? (Art. 13)',kriterium:'Zofingergeschichte; Sektions- und Centralstatuten; Canten; Biercomment und Farbentradition; allgemeine Verbindungsgeschichte; Traditionen und Usancen; Staatsbürgerliche Kenntnisse.'},
+  {kat:'Verständnis',text:'Zähle alle Stati auf und erkläre sie. (Art. 15–18)',kriterium:'Aktive (immatrikuliert); Inaktive (6 Aktivsemester, 2 als Bursche, 1 in Commission); Beurlaubte (CSt Art. 10); Extralokale (Unterbruch/ortsabwesend); Totaldispensierte (Studium beendet).'},
+  {kat:'Fangfrage',text:'Können Fuxen in die Commission gewählt werden? (Art. 19)',kriterium:'Nein, unmöglich. Sie müssen erst burschifiziert werden.'},
+  {kat:'Verständnis',text:'Was sind die Organe unserer Sektion? (Art. 30)',kriterium:'Aktivenconvent (AC), Commission, Rechnungsrevisoren, Delegierte.'},
+  {kat:'Verständnis',text:'Wann ist der AC beschlussfähig? (Art. 34)',kriterium:'Wenn zwei Drittel aller Aktiven im Semester anwesend sind.'},
+  {kat:'Verständnis',text:'Woraus besteht die Commission und was ist ihre Funktion? (Art. 40)',kriterium:'X, VX, FM, XX, XXX. Vertretung der Sektion nach aussen.'},
+  {kat:'Verständnis',text:'Welche Rechte hat die Commission? (Art. 42)',kriterium:'AC einberufen; Sektion vertreten; Bussen verhängen (Art. 58); einmalige Ausgaben bis 100 CHF; Entscheidung über Dispensgesuche.'},
+  {kat:'Verständnis',text:'Erkläre die Funktion des Präsidenten. (Art. 45)',kriterium:'Vertretung nach aussen und gegenüber Gesamtverein; Kontaktförderung; AC und Commissionssitzungen einberufen; Führung des Vereins; Semesterbeitragserlass mit Quästor.'},
+  {kat:'Verständnis',text:'Erkläre die Funktionen des Quästors. (Art. 47)',kriterium:'Verwaltung des Vereinsvermögens (persönliche Haftung); finanzielle Angelegenheiten; Rechnungen und Bussen; Mitgliederkartei; Mutationen CAus melden; Buchhaltung.'},
+  {kat:'Verständnis',text:'Erkläre die Funktion des Fuxmajors. (Art. 50)',kriterium:'Einführung der Fuxen; mind. 3 Fuxenstunden/Semester; Semesterfuxen auszeichnen; Fahne und Wixalien verwalten; Unterhaltung an Anlässen.'},
+  {kat:'Verständnis',text:'Nenne die Nebenchargen inkl. Aufgaben. (Art. 55ff.)',kriterium:'Politikmagister; Cantusmagister; Chef Lehre; Chef Rüümli.'},
+  {kat:'Sinnesfrage',text:'Weshalb übernehmen Fuxen gewisse Chargen? (Art. 55ff.)',kriterium:'Politmagister, Chef Lehre, Chef Rüümli. Verantwortung übernehmen lernen; Fuxensolidarität stärken; Interessenten Vorteile zeigen.'},
+  {kat:'Verständnis',text:'Welche Strafen gibt es und wer ist zuständig? (Art. 57)',kriterium:'Bussen (Commission); Verweis zu Protokoll (AC); Consilium Abeundi (AC); Ausstossung (AC).'},
+  {kat:'Verständnis',text:'Wie hoch sind die Mitgliederbeiträge für verschiedene Stati? (Art. 65)',kriterium:'Aktive: am Eröffnungs-AC festgelegt. Inaktive: mind. 3/4. Beurlaubte/Extralokale: 1/2. Totaldispensierte: 3/4. Keilfuxen: höchstens 3/4.'},
+  {kat:'Sinnesfrage',text:'Warum sollte die Commission den Semesterbeitrag am Eröffnungs-AC traktandieren?',kriterium:'Sonst wird er automatisch auf 60 CHF für Aktive gesetzt (Bruchteil der üblichen 140 CHF).'},
+  {kat:'Verständnis',text:'Wie erlischt die Mitgliedschaft? (Art. 28)',kriterium:'Erklärung zum AZ; Feststellung des Austritts; Austritt; Ausstossung; Übertritt in andere Sektion.'},
+  {kat:'Verständnis',text:'Erkläre das Consilium Abeundi und die Ausstossung. (Art. 60, 61)',kriterium:'Verletzung der Ehre oder völlige Interessenlosigkeit. Betroffener kann innert 8 Tagen Austrittsgesuch stellen. Bei schwerem Vergehen direkte Ausstossung. Rekursrecht vorbehalten.'},
+],
+Farbentradition:[
+  {kat:'Auswendig',text:'Wie lautet Art. 1 der Farbentradition?',kriterium:'2 Pkt. pro Absatz, 1 Fehler → 1 Pkt., 2+ Fehler → 0 Pkt.\n\nArt. 1: Die Zofingia HSG, Sektion des Schweizerischen Zofingervereins, ist eine farbentragende Verbindung. Als Symbol der Zusammengehörigkeit pflegt sie traditionelle Formen.'},
+  {kat:'Auswendig',text:'Wie lautet Art. 3 der Farbentradition?',kriterium:'Art. 3: Jeder Farbentragende ist sich bewusst, dass nach seinem Benehmen die ganze Verbindung beurteilt wird. Durch entsprechendes Auftreten trägt er zu einem positiven Ansehen bei.'},
+  {kat:'Auswendig',text:'Nenne Art. 17 der Farbentradition!',kriterium:'Art. 17: Farbentragende Mitglieder anderer Verbindungen sind zu grüssen.'},
+  {kat:'Auswendig',text:'Male den Zirkel auf!',kriterium:'Korrekt oder falsch. Schönheit wird nicht bewertet.'},
+  {kat:'Sinnesfrage',text:'Was bedeuten Art. 1–3 für dich persönlich?',kriterium:'1: Jedes Mitglied repräsentiert die Verbindung.\n1: Wie in der Privatwirtschaft: Image des Arbeitgebers wahren.\n1: Dementsprechend auftreten.'},
+  {kat:'Verständnis',text:'Welche Elemente umfassen die Farben? (Art. 5)',kriterium:'Band, Casquette, Zipfel.'},
+  {kat:'Verständnis',text:'Wann werden die Farben getragen? (Art. 6)',kriterium:'1. Offizielle Anlässe\n2. Fuxenstunden\n3. In repräsentativem Auftrag besuchte Anlässe.'},
+  {kat:'Verständnis',text:'Wie werden die Farben getragen? (Art. 7)',kriterium:'Mit Hemd und Krawatte oder Rollkragenpullover und Kittel. Burschen dürfen schmales Band tragen. Besondere Weisungen des Präsidenten vorbehalten.'},
+  {kat:'Verständnis',text:'Wie ist das Casquette des FM gekennzeichnet? (Art. 9)',kriterium:'Fuchsenschwanz und Gallon am Casquette. Das Gallon darf er nach der Amtszeit tragen.'},
+  {kat:'Verständnis',text:'Wie lauten die Devisen der Zofingia? (Art. 12)',kriterium:'Patria, Amicitiae, Litteris.'},
+  {kat:'Verständnis',text:'Was bedeuten die Bestandteile des Zirkels? (Art. 12)',kriterium:'Pro Element einen Punkt. (Tobinia vivat, crescat floreat!)'},
+  {kat:'Verständnis',text:'Wann wird das Casquette nicht getragen? (Art. 18, 19)',kriterium:'Beim Essen mit Messer und Gabel; feierlicher Akt (Salamander); Farbenlieder; Rede eines AZ.'},
+  {kat:'Verständnis',text:'Mit welchen Worten wird ein Fuxe getauft? (Art. 21)',kriterium:'"in nomine Bacchi, Gambrini, Gerusiae Sanctae, Tobiniae San Gallensis"'},
+  {kat:'Fangfrage',text:'Hat ein Bursche das Recht, den Wunsch eines Fuxen abzuschlagen, ihn zum Biervater zu wählen? (Art. 25)',kriterium:'Fangfrage! Ja, der Bursche hat sehr wohl das Recht, die Wahl auszuschlagen.'},
+  {kat:'Sinnesfrage',text:'Was ist der Sinn der Leibburschenschaft? (Art. 25)',kriterium:'1. Protektion\n2. Fragen des Verbindungs- und Privatlebens\n3. Zeichen der Lebensverbindung\n4. Generationsübergreifende Bekanntschaft.'},
+  {kat:'Verständnis',text:'Woraus besteht der Halbwichs? (Art. 28)',kriterium:'Flaus mit Bierzipfel, schwarze Hose, schwarze Schuhe, weisse Handschuhe, Casquette, nach Wunsch Bakel.'},
+  {kat:'Verständnis',text:'Woraus besteht der Vollwichs? (Art. 29)',kriterium:'Flaus mit Bierzipfel, weisse Hose, Reitstiefel oder schwarze Schuhe mit Gamaschen, weisse Stulpenhandschuhe, Cerevis.\nKein Bakel/Stock. Nicht ohne Begleitung anderer Farbentragender auf die Strasse.'},
+  {kat:'Verständnis',text:'Erkläre die Unterschiede zwischen normalem Salamander und Totensalamander. (Art. 39)',kriterium:'1: Totensalamander in verdunkeltem Lokal.\n1: Gläser werden auf dem Boden zerschlagen.\n1: Letzte Strophe "Vom hoh\'n Olymp herab" gesungen.\n1: Jeder begibt sich still in seine Klause.'},
+  {kat:'Verständnis',text:'Welche Trauerarten gibt es? (Art. 40, 41)',kriterium:'Volltrauer: alle Festlichkeiten fallen 2 Wochen aus; Band und Farben der Mütze umflort.\nHalbtrauer: nur Florrosette an der Mütze.'},
+  {kat:'Sinnesfrage',text:'Was bedeutet das Tragen der Farben für dich persönlich?',hint:'Repräsentation, Stolz, Verantwortung.'},
+  {kat:'Verständnis',text:'Aus was besteht eine Fahnendelegation? (Art. 36)',kriterium:'Zwei Hörnlifuxen und ein Fahnenträger. Nach Möglichkeit trägt der FM die Fahne.'},
+  {kat:'Verständnis',text:'Wer kann mit wem Herzbruder werden? (Art. 26, 27)',kriterium:'Bursch mit Bursch; Fuxe mit Fuxe; Zofinger mit anderen Couleurstudenten.'},
+],
+Geschichte:[
+  {kat:'Verständnis',text:'Beschreibe die Schweizer Geschichte nach dem Réduit.',hint:'Nachkriegszeit, Wirtschaftswunder, politische Entwicklung der CH.'},
+  {kat:'Verständnis',text:'Was versteht man unter dem "Réduit"?',hint:'Militärische Rückzugsstrategie im 2. Weltkrieg, Alpenfestung.'},
+  {kat:'Verständnis',text:'Erkläre die Geschichte der Verbindungen in Europa.',hint:'Von Landsmannschaften zu modernen Verbindungen.'},
+  {kat:'Verständnis',text:'Wann und wie wurde der Schweizerische Zofingerverein gegründet?',hint:'Gründerjahre, Gründerväter, Idee des Vereins.'},
+  {kat:'Verständnis',text:'Beschreibe die Geschichte der Zofingia HSG.',hint:'St. Gallener Sektion: Gründung, wichtige Meilensteine.'},
+  {kat:'Verständnis',text:'Welche Rolle spielten Studentenverbindungen in der politischen Geschichte der Schweiz?',hint:'Liberalismus, Freisinn, Demokratiebewegung 19. Jhd.'},
+  {kat:'Sinnesfrage',text:'Was bedeutet die Schweizer Geschichte nach dem Réduit für die Zofingia heute?',hint:'Neutralität, Föderalismus, politische Verantwortung.'},
+  {kat:'Verständnis',text:'Nenne wichtige Jahreszahlen aus der Geschichte des Schweizerischen Zofingervereins.',hint:'Gründung, wichtige Meilensteine, Sektionsgründungen.'},
+],
+Fuxenheft:[
+  {kat:'Verständnis',text:'Erkläre 5 Begriffe der Verbindungs- und Studentensprache.',hint:'z.B. Couleur, Fuchs, Senior, Kneipe, Salamander, Komment, Conkneipant, Leibbursche, Cerevis, BV...'},
+  {kat:'Verständnis',text:'Was ist ein Conkneipant?',hint:'Gast an der Kneipe.'},
+  {kat:'Verständnis',text:'Erkläre den Begriff "Couleur" – was gehört dazu?',hint:'Farben, Band, Mütze, Zirkel.'},
+  {kat:'Verständnis',text:'Was ist ein Leibbursche und welche Bedeutung hat diese Beziehung?',hint:'Persönlicher Mentor-Bursch für einen Fuxen.'},
+  {kat:'Verständnis',text:'Was ist ein Cerevis und wann wird es eingesetzt?',hint:'Mützenzipfel, wird als Eid abgegeben.'},
+  {kat:'Sinnesfrage',text:'Was nimmst du aus der Fuxenzeit für dein Leben mit?',hint:'Persönliche Reflexion: Traditionen, Freundschaft, Verantwortung.'},
+  {kat:'Verständnis',text:'Beschreibe die wichtigsten Rituale und Traditionen der Zofingia.',hint:'Bier-Comment, Salamander, Canten, Couleur tragen, Kneipe...'},
+  {kat:'Verständnis',text:'Was ist eine Bierfamilie und was ist ein Biervater?',hint:'Leibbursche = Biervater; Bierfamilie = Biervater mit seinen Fuxen.'},
+],
+};
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let S = {};
+
+function makeRng(seed){
+  let s=seed*2654435761>>>0;
+  return ()=>{s^=s<<13;s^=s>>17;s^=s<<5;return(s>>>0)/4294967296;};
+}
+function rndInt(n){return Math.floor(S.rng()*n);}
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(S.rng()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+// ─── Setup ───
+function updatePrueflingeFields(){
+  const n=parseInt(document.getElementById('num-prueflinge').value)||1;
+  const c=document.getElementById('prueflinge-inputs');
+  while(c.children.length<n){const i=document.createElement('input');i.type='text';i.className='pruegling-input';i.placeholder=`Prüfling ${c.children.length+1} Vulgo`;c.appendChild(i);}
+  while(c.children.length>n)c.removeChild(c.lastChild);
+}
+
+function startExam(){
+  const seed=parseInt(document.getElementById('seed').value)||1;
+  const names=Array.from(document.querySelectorAll('.pruegling-input')).map((el,i)=>el.value.trim()||`Prüfling ${i+1}`);
+  S={
+    seed, prueflinge:names, pidx:0, totalQ:0, score:null,
+    rng:makeRng(seed*137+names.length*31),
+    // cant state
+    cantQueue:[],        // items queued by click: {kind,text}
+    cantAuswDone:[],     // which auswendig canten have been done
+    cantNormDone:[],     // which normal canten have been done
+    cantAuswShuf:[], cantNormShuf:[],
+    // question phase state
+    phase:'cant',         // 'cant' | 'questions'
+    phaseBlock:null, phaseBlockIdx:-1, phaseQDone:0, phaseQTarget:0,
+    blockPools:{},
+    shuffledBlocks:[],
+    // scores per prüfling
+    scores:names.map(()=>{
+      const o={Canten:{auswendig:[],normal:[]}};
+      BLOCKS.forEach(b=>o[b]={Auswendig:[],Verständnis:[],Sinnesfrage:[],Fangfrage:[]});
+      return o;
+    }),
+    history:[],
+    currentItem:null,
+  };
+  S.rng=makeRng(seed*137+names.length*31);
+  S.cantAuswShuf=shuffle(CANTEN_AUSWENDIG);
+  S.cantNormShuf=shuffle(CANTEN_NORMAL);
+  S.shuffledBlocks=shuffle(BLOCKS);
+  BLOCKS.forEach(b=>{S.blockPools[b]=shuffle(QUESTIONS[b].map((_,i)=>i));});
+
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('exam-screen').style.display='flex';
+  renderCantSidebar();
+  loadNext();
+}
+
+// ─── CANT SIDEBAR ───
+function renderCantSidebar(){
+  renderCantList('cant-auswendig-list', CANTEN_AUSWENDIG, 'auswendig');
+  renderCantList('cant-normal-list', CANTEN_NORMAL, 'normal');
+  document.getElementById('queued-hint').textContent=S.cantQueue.length?`${S.cantQueue.length} eingereiht`:'';
+}
+
+function renderCantList(elId, list, kind){
+  const el=document.getElementById(elId);
+  el.innerHTML='';
+  list.forEach(text=>{
+    const done=kind==='auswendig'?S.cantAuswDone.includes(text):S.cantNormDone.includes(text);
+    const isActive=S.currentItem&&S.currentItem.text===text;
+    const isQueued=S.cantQueue.some(q=>q.text===text);
+    const div=document.createElement('div');
+    div.className='cant-item'+(done?' done':'')+(isActive?' active':'')+(isQueued&&!isActive?' queued':'');
+    div.innerHTML=`<div class="cant-bullet${done||isActive?' filled':''}"></div><span>${text}</span>`;
+    if(!isActive) div.onclick=()=>queueCant({kind:'cant_'+kind,text});
+    el.appendChild(div);
+  });
+}
+
+function queueCant(item){
+  // toggle: if already queued, remove
+  const idx=S.cantQueue.findIndex(q=>q.text===item.text);
+  if(idx>=0){ S.cantQueue.splice(idx,1); }
+  else { S.cantQueue.unshift(item); } // add to front
+  renderCantSidebar();
+}
+
+// ─── PHASE LOGIC ───
+function loadNext(){
+  S.score=null;
+  let item=null;
+
+  if(S.cantQueue.length>0){
+    // Queued cant takes priority
+    item=S.cantQueue.shift();
+  } else if(S.phase==='cant'){
+    item=pickAutoCant();
+    if(!item){ startQuestionPhase(); item=pickQuestion(); }
+  } else {
+    // question phase
+    if(S.phaseQDone>=S.phaseQTarget){
+      S.phase='cant';
+      item=pickAutoCant();
+      if(!item){ startQuestionPhase(); item=pickQuestion(); }
+    } else {
+      item=pickQuestion();
+    }
+  }
+
+  if(!item) item={kind:'done',text:''};
+  S.currentItem=item;
+  S.totalQ++;
+  renderItem();
+  renderCantSidebar();
+  updateHeader();
+  updateProgress();
+  document.getElementById('btn-next').disabled=true;
+}
+
+function pickAutoCant(){
+  const auswRem=S.cantAuswShuf.filter(c=>!S.cantAuswDone.includes(c));
+  const normRem=S.cantNormShuf.filter(c=>!S.cantNormDone.includes(c));
+  if(normRem.length===0&&auswRem.length===0){
+    // reset
+    S.cantAuswDone=[]; S.cantNormDone=[];
+    S.cantAuswShuf=shuffle(CANTEN_AUSWENDIG);
+    S.cantNormShuf=shuffle(CANTEN_NORMAL);
+    return null;
+  }
+  // alternate: normal first, then question phase will follow
+  if(normRem.length>0){
+    const t=normRem[0]; S.cantNormDone.push(t);
+    return {kind:'cant_normal',text:t};
+  }
+  if(auswRem.length>0){
+    const t=auswRem[0]; S.cantAuswDone.push(t);
+    return {kind:'cant_auswendig',text:t};
+  }
+  return null;
+}
+
+function startQuestionPhase(){
+  S.phaseBlockIdx=(S.phaseBlockIdx+1)%S.shuffledBlocks.length;
+  S.phaseBlock=S.shuffledBlocks[S.phaseBlockIdx];
+  S.phaseQTarget=2+rndInt(4);
+  S.phaseQDone=0;
+  if(S.blockPools[S.phaseBlock].length===0)
+    S.blockPools[S.phaseBlock]=shuffle(QUESTIONS[S.phaseBlock].map((_,i)=>i));
+  S.phase='questions';
+}
+
+function pickQuestion(){
+  if(!S.phaseBlock)return null;
+  if(S.blockPools[S.phaseBlock].length===0)
+    S.blockPools[S.phaseBlock]=shuffle(QUESTIONS[S.phaseBlock].map((_,i)=>i));
+  const idx=S.blockPools[S.phaseBlock].shift();
+  S.phaseQDone++;
+  return {kind:'question',block:S.phaseBlock,q:QUESTIONS[S.phaseBlock][idx]};
+}
+
+// ─── RENDER ───
+function renderItem(){
+  const item=S.currentItem;
+  const phaseName=document.getElementById('phase-name');
+  const phaseSub=document.getElementById('phase-sub');
+  const areaTag=document.getElementById('q-area-tag');
+  const typeTag=document.getElementById('q-type-tag');
+
+  document.getElementById('q-num').textContent=`#${S.totalQ}`;
+  document.getElementById('current-pruegling-name').textContent=S.prueflinge[S.pidx];
+  document.getElementById('pruegling-num').textContent=`${S.pidx+1} / ${S.prueflinge.length}`;
+
+  // always 1-5
+  const legend='<span>1=ungenügend</span><span>2=schwach</span><span>3=ausreichend</span><span>4=gut</span><span>5=sehr gut</span>';
+  document.getElementById('bew-label').textContent='Bewertung (1–5)';
+  document.getElementById('score-legend').innerHTML=legend;
+  renderStars(5);
+
+  if(item.kind==='cant_auswendig'||item.kind==='cant_normal'){
+    const isA=item.kind==='cant_auswendig';
+    phaseName.textContent='♪ Cant';
+    phaseSub.textContent=isA?'Muss vollständig auswendig gekonnt werden':'Kann mit Cantenprügel gesungen werden';
+    areaTag.textContent='Canten'; areaTag.className='tag tag-canten';
+    typeTag.textContent=isA?'† Auswendig':'Mit Buch';
+    typeTag.className=isA?'tag tag-auswendig':'tag tag-area';
+    document.getElementById('q-text').textContent=`Cant vortragen: „${item.text}"`;
+    document.getElementById('q-hint').textContent='';
+    document.getElementById('q-krit').style.display='none';
+  } else if(item.kind==='question'){
+    const {block,q}=item;
+    phaseName.textContent=`📖 ${block}`;
+    phaseSub.textContent=`Frage ${S.phaseQDone}/${S.phaseQTarget} in diesem Block`;
+    areaTag.textContent=block; areaTag.className='tag tag-area';
+    const km={Auswendig:'tag-auswendig',Verständnis:'tag-v',Sinnesfrage:'tag-s',Fangfrage:'tag-f'};
+    typeTag.textContent=q.kat; typeTag.className=`tag ${km[q.kat]||'tag-area'}`;
+    document.getElementById('q-text').textContent=q.text;
+    document.getElementById('q-hint').textContent=q.hint?`Hinweis: ${q.hint}`:'';
+    const krit=document.getElementById('q-krit');
+    if(q.kriterium){krit.textContent=q.kriterium;krit.style.display='block';}
+    else krit.style.display='none';
+  } else {
+    phaseName.textContent='Ende'; phaseSub.textContent='Alle Bereiche abgedeckt';
+    document.getElementById('q-text').textContent='Alle Bereiche wurden abgedeckt. Prüfung kann beendet werden.';
+    document.getElementById('q-hint').textContent='';
+    document.getElementById('q-krit').style.display='none';
+  }
+}
+
+function renderStars(max){
+  const c=document.getElementById('stars');
+  c.innerHTML='';
+  for(let i=1;i<=max;i++){
+    const b=document.createElement('button');
+    b.className='star-btn';b.textContent=i;
+    b.onclick=()=>selectScore(i);
+    c.appendChild(b);
+  }
+}
+
+function selectScore(score){
+  S.score=score;
+  document.querySelectorAll('.star-btn').forEach(b=>{
+    b.classList.remove('sel','s1','s2','s3','s4','s5');
+    if(parseInt(b.textContent)===score) b.classList.add('sel',`s${score}`);
+  });
+  document.getElementById('btn-next').disabled=false;
+}
+
+function submitAndNext(){
+  if(S.score===null)return;
+  const item=S.currentItem;
+  const pidx=S.pidx;
+  if(item.kind==='cant_auswendig'||item.kind==='cant_normal'){
+    const k=item.kind==='cant_auswendig'?'auswendig':'normal';
+    S.scores[pidx].Canten[k].push(S.score);
+    if(item.kind==='cant_auswendig'&&!S.cantAuswDone.includes(item.text)) S.cantAuswDone.push(item.text);
+    if(item.kind==='cant_normal'&&!S.cantNormDone.includes(item.text)) S.cantNormDone.push(item.text);
+    S.history.push({pruefling:S.prueflinge[pidx],text:item.text,area:'Canten',kat:item.kind==='cant_auswendig'?'† Auswendig':'Normal',score:S.score,max:5});
+    if(S.cantQueue.length===0) startQuestionPhase();
+  } else if(item.kind==='question'){
+    const {block,q}=item;
+    S.scores[pidx][block][q.kat].push(S.score);
+    S.history.push({pruefling:S.prueflinge[pidx],text:q.text,area:block,kat:q.kat,score:S.score,max:5});
+  }
+  S.pidx=(S.pidx+1)%S.prueflinge.length;
+  loadNext();
+}
+
+function skipItem(){
+  S.pidx=(S.pidx+1)%S.prueflinge.length;
+  if(S.currentItem&&(S.currentItem.kind==='cant_auswendig'||S.currentItem.kind==='cant_normal')&&S.cantQueue.length===0){
+    startQuestionPhase();
+  }
+  loadNext();
+}
+
+function updateHeader(){
+  document.getElementById('header-meta').textContent=`Durchgang ${S.seed} · Frage ${S.totalQ}`;
+}
+
+function updateProgress(){
+  const el=document.getElementById('progress-strip');
+  // count scores
+  const cantA=S.scores.reduce((n,s)=>n+s.Canten.auswendig.length,0);
+  const cantN=S.scores.reduce((n,s)=>n+s.Canten.normal.length,0);
+  let html=`<span class="prog-item"><span class="prog-count ${cantA?'':'zero'}">${cantA}</span>Canten†</span>`;
+  html+=`<span class="prog-item"><span class="prog-count ${cantN?'':'zero'}">${cantN}</span>Canten</span>`;
+  BLOCKS.forEach(b=>{
+    const n=S.scores.reduce((acc,s)=>acc+Object.values(s[b]).flat().length,0);
+    html+=`<span class="prog-item"><span class="prog-count ${n?'':'zero'}">${n}</span>${b.substring(0,8)}</span>`;
+  });
+  el.innerHTML=html;
+}
+
+function endExam(){
+  document.getElementById('confirm-modal').classList.add('show');
+}
+function cancelEnd(){
+  document.getElementById('confirm-modal').classList.remove('show');
+}
+function confirmEnd(){
+  document.getElementById('confirm-modal').classList.remove('show');
+  showResults();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESULTS
+// ═══════════════════════════════════════════════════════
+function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;}
+function ratCls(r){return r>=0.8?'good':r>=0.5?'mid':'bad';}
+
+function showResults(){
+  document.getElementById('exam-screen').style.display='none';
+  document.getElementById('result-screen').classList.add('active');
+
+  const totalItems=S.history.length;
+  document.getElementById('result-sub').textContent=
+    `Durchgang ${S.seed} · ${S.totalQ} Aufgaben gestellt · ${totalItems} bewertet · ${S.prueflinge.length} Prüfling${S.prueflinge.length!==1?'e':''}`;
+
+  let html='';
+
+  S.prueflinge.forEach((name,pidx)=>{
+    const sc=S.scores[pidx];
+    const hist=S.history.filter(h=>h.pruefling===name);
+
+    // All scores are out of 5 now
+    let failCount=0, warnCount=0;
+    // Canten
+    ['auswendig','normal'].forEach(k=>{
+      const scores=sc.Canten[k];
+      if(!scores.length)return;
+      const r=avg(scores)/5;
+      if(r<0.6)failCount++;else if(r<0.7)warnCount++;
+    });
+    BLOCKS.forEach(b=>{
+      Object.entries(sc[b]).forEach(([kat,scores])=>{
+        if(!scores.length)return;
+        const r=avg(scores)/5;
+        const thr=THRESHOLDS[kat];
+        if(r<thr)failCount++;else if(r<thr+0.1)warnCount++;
+      });
+    });
+
+    const verdict=failCount>0?'fail':warnCount>0?'warn':'pass';
+    const verdictText=failCount>0?`⚠ ${failCount} Kat. unter Schwelle`:(warnCount>0?`~ ${warnCount} Kat. knapp`:'✓ Alle Schwellen erreicht');
+
+    html+=`<div class="res-pruegling">`;
+    html+=`<div class="res-pruegling-head">⚑ ${name}<span class="res-verdict ${verdict}">${verdictText}</span></div>`;
+    html+=`<div class="res-body">`;
+
+    // ── Canten ──
+    const hasCantData=sc.Canten.auswendig.length||sc.Canten.normal.length;
+    if(hasCantData){
+      html+=`<div class="res-block"><div class="res-block-title">Canten</div><div class="res-cat-grid">`;
+      [['auswendig','† Auswendig',0.6],['normal','Mit Buch',0.6]].forEach(([k,label,thr])=>{
+        const scores=sc.Canten[k];
+        if(!scores.length){html+=`<div class="res-cat-card"><div class="res-cat-name">${label}</div><div class="no-data">—</div></div>`;return;}
+        const a=avg(scores);const r=a/5;const cl=ratCls(r);const pass=r>=thr;
+        html+=`<div class="res-cat-card">
+          <div class="res-cat-name">${label}</div>
+          <div class="res-cat-val">${a.toFixed(2)}/5 <span class="chk ${pass?'ok':'no'}">${pass?'✓':'✗'}</span></div>
+          <div class="res-cat-bar"><div class="res-cat-fill ${cl}" style="width:${Math.round(r*100)}%"></div></div>
+          <div class="res-cat-note">n=${scores.length} · Einzelwerte: ${scores.join(', ')}</div>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    }
+
+    // ── Per block ──
+    BLOCKS.forEach(b=>{
+      const bsc=sc[b];
+      if(!Object.values(bsc).some(a=>a.length>0))return;
+      html+=`<div class="res-block"><div class="res-block-title">${b}</div><div class="res-cat-grid">`;
+      Object.entries(bsc).forEach(([kat,scores])=>{
+        const thr=THRESHOLDS[kat];
+        if(!scores.length){html+=`<div class="res-cat-card"><div class="res-cat-name">${kat}</div><div class="no-data">—</div></div>`;return;}
+        const a=avg(scores);const r=a/5;const cl=ratCls(r);const pass=r>=thr;
+        html+=`<div class="res-cat-card">
+          <div class="res-cat-name">${kat} <span style="font-weight:400;color:var(--faded)">(≥${Math.round(thr*100)}%)</span></div>
+          <div class="res-cat-val">${a.toFixed(2)}/5 <span class="chk ${pass?'ok':'no'}">${pass?'✓':'✗'}</span></div>
+          <div class="res-cat-bar"><div class="res-cat-fill ${cl}" style="width:${Math.round(r*100)}%"></div></div>
+          <div class="res-cat-note">n=${scores.length} · ${Math.round(r*100)}% · Schwelle ${Math.round(thr*100)}%</div>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    });
+
+    // ── Verlauf ──
+    if(hist.length){
+      html+=`<div class="res-history">
+        <div class="res-history-title">Verlauf – alle bewerteten Aufgaben (${hist.length})</div>
+        <table class="hist-table">
+          <thead><tr><th>#</th><th>Bereich</th><th>Typ</th><th>Frage / Aufgabe</th><th>Note</th></tr></thead><tbody>`;
+      hist.forEach((h,i)=>{
+        html+=`<tr>
+          <td style="color:var(--faded);white-space:nowrap">${i+1}</td>
+          <td style="white-space:nowrap">${h.area}</td>
+          <td style="white-space:nowrap">${h.kat}</td>
+          <td>${h.text}</td>
+          <td><span class="score-pill sp${h.score}">${h.score}/5</span></td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
+    } else {
+      html+=`<div class="no-data" style="padding:.5rem 0">Keine bewerteten Aufgaben für diesen Prüfling.</div>`;
+    }
+
+    html+=`</div></div>`;
+  });
+
+  html+=`<hr class="div"><div style="font-size:10px;color:var(--faded);line-height:1.8">
+    <strong style="color:var(--ink)">Schwellenwerte (von max. 5):</strong>
+    Auswendig ≥90% · Verständnis ≥80% · Sinnesfrage ≥70% · Fangfrage ≥60%<br>
+    <strong style="color:var(--ink)">Bewertung:</strong> 1=ungenügend, 2=schwach, 3=ausreichend, 4=gut, 5=sehr gut
+  </div>`;
+
+  document.getElementById('result-content').innerHTML=html;
+  window.scrollTo(0,0);
+}
+
+function restart(){
+  document.getElementById('result-screen').classList.remove('active');
+  document.getElementById('setup-screen').style.display='flex';
+}
+</script>
+</body>
+</html>
